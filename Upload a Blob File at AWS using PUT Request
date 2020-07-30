@@ -1,0 +1,32 @@
+Blob result1 = /*provide your information in blob*/
+String attachmentBody = EncodingUtil.base64Encode(result1);
+String formattedDateString = Datetime.now().formatGMT('EEE, dd MMM yyyy HH:mm:ss z');
+String key = '************************************';
+String secret = '*******************************';
+String bucketname = '****************';
+String host = 's3-us-west-1.amazonaws.com';
+String method = 'PUT';
+String leadName=lead.Name__c; /*where name is a custom autonumber field*/
+/*here we can define our own file location to store files in AWS*/
+String filename = 'Leads/'+leadName+'/Report/'+ String.valueOf(DateTime.now()).replace(' ','');
+HttpRequest req = new HttpRequest();
+req.setMethod(method);
+req.setEndpoint('https://' + bucketname + '.' + host + '/' + filename);
+req.setHeader('Host', bucketname + '.' + host);
+req.setHeader('Content-Length', String.valueOf(attachmentBody.length()));
+req.setHeader('Content-Encoding', 'UTF-8');
+req.setHeader('Content-type', 'text/html');
+req.setHeader('Connection', 'keep-alive');
+req.setHeader('Date', formattedDateString);
+req.setHeader('ACL', 'public-read');
+req.setBodyAsBlob(result1);
+String stringToSign = 'PUT\n\n' + 'text/html' + '\n' + formattedDateString + '\n' + '/' + bucketname + '/' + filename;
+String encodedStringToSign = EncodingUtil.urlEncode(stringToSign, 'UTF-8');
+Blob mac = Crypto.generateMac('HMACSHA1', blob.valueof(stringToSign),blob.valueof(secret));
+String signedKey  = EncodingUtil.base64Encode(mac);
+String authHeader = 'AWS' + ' ' + key + ':' + signedKey ;
+req.setHeader('Authorization',authHeader);
+String decoded = EncodingUtil.urlDecode(encodedStringToSign , 'UTF-8');
+Http http = new Http();
+HTTPResponse awsResponce = http.send(req);
+System.debug('awsResponce--->'+awsResponce);
